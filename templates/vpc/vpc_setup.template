@@ -1,0 +1,230 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "AWS cloudformation template to create basic networking with VPC and its associated components",
+    "Outputs": {
+        "IsolatedRouteTableId": {
+            "Description": "Route table for Isolated subnet",
+            "Value": {
+                "Ref": "IsolatedRouteTable"
+            }
+        },
+        "PrivateRouteTableId": {
+            "Description": "Route table for private subnet",
+            "Value": {
+                "Ref": "PrivateRouteTable"
+            }
+        },
+        "PublicRouteTableId": {
+            "Description": "Route table for public subnet",
+            "Value": {
+                "Ref": "PublicRouteTable"
+            }
+        },
+        "VPCEndpointId": {
+            "Description": "VPC End point ID",
+            "Value": {
+                "Ref": "VPCEndpoint"
+            }
+        },
+        "VPCId": {
+            "Description": "VPC ID for this environment",
+            "Value": {
+                "Ref": "vpc"
+            }
+        }
+    },
+    "Parameters": {
+        "vpccidr": {
+            "AllowedPattern": "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+            "ConstraintDescription": "must be a valid IP CIDR range of the form x.x.x.x/x.",
+            "Default": "10.0.0.0/16",
+            "Description": " The IP address range that can be used to VPC",
+            "MaxLength": "18",
+            "MinLength": "9",
+            "Type": "String"
+        }
+    },
+    "Resources": {
+        "AttachGateway": {
+            "Properties": {
+                "InternetGatewayId": {
+                    "Ref": "InternetGateway"
+                },
+                "VpcId": {
+                    "Ref": "vpc"
+                }
+            },
+            "Type": "AWS::EC2::VPCGatewayAttachment"
+        },
+        "InternetGateway": {
+            "Properties": {
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Join": [
+                                "/",
+                                [
+                                    {
+                                        "Ref": "AWS::StackName"
+                                    },
+                                    "Internet Gateway"
+                                ]
+                            ]
+                        }
+                    }
+                ]
+            },
+            "Type": "AWS::EC2::InternetGateway"
+        },
+        "IsolatedRouteTable": {
+            "Properties": {
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Join": [
+                                "/",
+                                [
+                                    {
+                                        "Ref": "AWS::StackName"
+                                    },
+                                    "Isolated RouteTable"
+                                ]
+                            ]
+                        }
+                    }
+                ],
+                "VpcId": {
+                    "Ref": "vpc"
+                }
+            },
+            "Type": "AWS::EC2::RouteTable"
+        },
+        "PrivateRouteTable": {
+            "Properties": {
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Join": [
+                                "/",
+                                [
+                                    {
+                                        "Ref": "AWS::StackName"
+                                    },
+                                    "Private RouteTable"
+                                ]
+                            ]
+                        }
+                    }
+                ],
+                "VpcId": {
+                    "Ref": "vpc"
+                }
+            },
+            "Type": "AWS::EC2::RouteTable"
+        },
+        "PublicRoute": {
+            "DependsOn": "AttachGateway",
+            "Properties": {
+                "DestinationCidrBlock": "0.0.0.0/0",
+                "GatewayId": {
+                    "Ref": "InternetGateway"
+                },
+                "RouteTableId": {
+                    "Ref": "PublicRouteTable"
+                }
+            },
+            "Type": "AWS::EC2::Route"
+        },
+        "PublicRouteTable": {
+            "Properties": {
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Join": [
+                                "/",
+                                [
+                                    {
+                                        "Ref": "AWS::StackName"
+                                    },
+                                    "Public RouteTable"
+                                ]
+                            ]
+                        }
+                    }
+                ],
+                "VpcId": {
+                    "Ref": "vpc"
+                }
+            },
+            "Type": "AWS::EC2::RouteTable"
+        },
+        "VPCEndpoint": {
+            "Properties": {
+                "PolicyDocument": {
+                    "Statement": [
+                        {
+                            "Action": "*",
+                            "Effect": "Allow",
+                            "Principal": "*",
+                            "Resource": "*"
+                        }
+                    ]
+                },
+                "RouteTableIds": [
+                    {
+                        "Ref": "PrivateRouteTable"
+                    },
+                    {
+                        "Ref": "IsolatedRouteTable"
+                    }
+                ],
+                "ServiceName": {
+                    "Fn::Join": [
+                        "",
+                        [
+                            "com.amazonaws.",
+                            {
+                                "Ref": "AWS::Region"
+                            },
+                            ".s3"
+                        ]
+                    ]
+                },
+                "VpcId": {
+                    "Ref": "vpc"
+                }
+            },
+            "Type": "AWS::EC2::VPCEndpoint"
+        },
+        "vpc": {
+            "Properties": {
+                "CidrBlock": {
+                    "Ref": "vpccidr"
+                },
+                "EnableDnsHostnames": "true",
+                "EnableDnsSupport": "true",
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Join": [
+                                "/",
+                                [
+                                    {
+                                        "Ref": "AWS::StackName"
+                                    },
+                                    "VPC"
+                                ]
+                            ]
+                        }
+                    }
+                ]
+            },
+            "Type": "AWS::EC2::VPC"
+        }
+    }
+}

@@ -1,0 +1,7 @@
+.idea
+__pycache__
+ignore/*
+CFNStack.egg-info/*
+dist/*
+build/*
+cfnstack_aws.egg-info/*

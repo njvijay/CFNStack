@@ -1,0 +1,7 @@
+c:\users\vijay jawaharial\appdata\local\continuum\anaconda3\lib\site-packages\cfnstack_aws-0.3-py3.5.egg
+C:\Users\Vijay Jawaharial\AppData\Local\Continuum\Anaconda3\Scripts\cfnstack-script.py
+C:\Users\Vijay Jawaharial\AppData\Local\Continuum\Anaconda3\Scripts\cfnstack.exe
+C:\Users\Vijay Jawaharial\AppData\Local\Continuum\Anaconda3\Scripts\pystache-test-script.py
+C:\Users\Vijay Jawaharial\AppData\Local\Continuum\Anaconda3\Scripts\pystache-test.exe
+C:\Users\Vijay Jawaharial\AppData\Local\Continuum\Anaconda3\Scripts\pystache-script.py
+C:\Users\Vijay Jawaharial\AppData\Local\Continuum\Anaconda3\Scripts\pystache.exe

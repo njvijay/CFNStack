@@ -1,0 +1,212 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "AWS cloudformation template to create network setup for bastion host and instantiate bastion instance",
+    "Outputs": {
+        "BastionElasticIP": {
+            "Description": "Elastic IP assigned to Bastion Instance",
+            "Value": {
+                "Ref": "BastionEIP"
+            }
+        },
+        "BastionInstnaceId": {
+            "Description": "Instance ID of Bastion",
+            "Value": {
+                "Ref": "BastionEC2Instance"
+            }
+        },
+        "BastionPrivateIP": {
+            "Description": "Private IP address assigned for Bastion Host",
+            "Value": {
+                "Fn::GetAtt": [
+                    "BastionEC2Instance",
+                    "PrivateIp"
+                ]
+            }
+        }
+    },
+    "Parameters": {
+        "bastionaz": {
+            "ConstraintDescription": "Must be valid availability zone",
+            "Description": "Availability zone where bastion environment to be installed",
+            "Type": "String"
+        },
+        "bastioncidr": {
+            "AllowedPattern": "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+            "ConstraintDescription": "must be a valid IP CIDR range of the form x.x.x.x/x.",
+            "Default": "10.0.0.0/24",
+            "Description": " The IP address range that can be used to bastion subnet",
+            "MaxLength": "18",
+            "MinLength": "9",
+            "Type": "String"
+        },
+        "bastioninstanceami": {
+            "ConstraintDescription": "Must be valid and existing AMI",
+            "Description": "Enter existing AMI ID to instantiate Bastion Host",
+            "Type": "String"
+        },
+        "bastioninstsize": {
+            "ConstraintDescription": "Must be valid EC2 instance size",
+            "Description": "Enter Bastion instance size",
+            "Type": "String"
+        },
+        "bastionkeypairname": {
+            "ConstraintDescription": "Must be valid and existing ec2 keypair",
+            "Description": "Enter existing EC2 keypair to enable SSH access to the instance",
+            "Type": "String"
+        },
+        "publiceroutetableid": {
+            "ConstraintDescription": "Must be valid and existing Public route table id",
+            "Description": "Enter existing Public Route table ID where Bastion subnet can be associated",
+            "Type": "String"
+        },
+        "vpccidr": {
+            "AllowedPattern": "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+            "ConstraintDescription": "must be a valid IP CIDR range of the form x.x.x.x/x.",
+            "Default": "10.0.0.0/16",
+            "Description": " The IP address range used in VPC",
+            "MaxLength": "18",
+            "MinLength": "9",
+            "Type": "String"
+        },
+        "vpcid": {
+            "ConstraintDescription": "Must be valid and existing VPC ID",
+            "Description": "Enter existing VPC ID where Bastion host needs to be setup",
+            "Type": "String"
+        }
+    },
+    "Resources": {
+        "BastionEC2Instance": {
+            "Properties": {
+                "ImageId": {
+                    "Ref": "bastioninstanceami"
+                },
+                "InstanceType": {
+                    "Ref": "bastioninstsize"
+                },
+                "KeyName": {
+                    "Ref": "bastionkeypairname"
+                },
+                "SecurityGroupIds": [
+                    {
+                        "Ref": "BastionInstanceSecurityGroup"
+                    }
+                ],
+                "SubnetId": {
+                    "Ref": "bastionsubnet"
+                },
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Join": [
+                                "/",
+                                [
+                                    {
+                                        "Ref": "AWS::StackName"
+                                    },
+                                    "Bastion Instance"
+                                ]
+                            ]
+                        }
+                    }
+                ]
+            },
+            "Type": "AWS::EC2::Instance"
+        },
+        "BastionEIP": {
+            "DependsOn": "BastionEC2Instance",
+            "Properties": {
+                "Domain": "vpc",
+                "InstanceId": {
+                    "Ref": "BastionEC2Instance"
+                }
+            },
+            "Type": "AWS::EC2::EIP"
+        },
+        "BastionInstanceSecurityGroup": {
+            "Properties": {
+                "GroupDescription": "Bastion Security Group",
+                "SecurityGroupEgress": [
+                    {
+                        "CidrIp": {
+                            "Ref": "vpccidr"
+                        },
+                        "FromPort": "0",
+                        "IpProtocol": "tcp",
+                        "ToPort": "65535"
+                    }
+                ],
+                "SecurityGroupIngress": [
+                    {
+                        "CidrIp": "157.191.2.68/32",
+                        "FromPort": "22",
+                        "IpProtocol": "tcp",
+                        "ToPort": "22"
+                    }
+                ],
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Join": [
+                                "/",
+                                [
+                                    {
+                                        "Ref": "AWS::StackName"
+                                    },
+                                    "Bastion SG"
+                                ]
+                            ]
+                        }
+                    }
+                ],
+                "VpcId": {
+                    "Ref": "vpcid"
+                }
+            },
+            "Type": "AWS::EC2::SecurityGroup"
+        },
+        "bastionSubnetRouteTableAssociation": {
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "publiceroutetableid"
+                },
+                "SubnetId": {
+                    "Ref": "bastionsubnet"
+                }
+            },
+            "Type": "AWS::EC2::SubnetRouteTableAssociation"
+        },
+        "bastionsubnet": {
+            "Properties": {
+                "AvailabilityZone": {
+                    "Ref": "bastionaz"
+                },
+                "CidrBlock": {
+                    "Ref": "bastioncidr"
+                },
+                "MapPublicIpOnLaunch": "true",
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Join": [
+                                "/",
+                                [
+                                    {
+                                        "Ref": "AWS::StackName"
+                                    },
+                                    "Bastion Subnet"
+                                ]
+                            ]
+                        }
+                    }
+                ],
+                "VpcId": {
+                    "Ref": "vpcid"
+                }
+            },
+            "Type": "AWS::EC2::Subnet"
+        }
+    }
+}

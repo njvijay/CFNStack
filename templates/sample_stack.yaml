@@ -1,0 +1,72 @@
+sample:
+    region: us-east-1
+    environment: dev
+    tags:
+        project : Test
+        charge_code : AAABCCC
+        Owner : PROJECT-A
+    stacks:
+        vpc:
+            cf_template: {{PROJECT_BASE}}/vpc/vpc_setup.template
+            depends:
+            params:
+                vpccidr:
+                    value: 10.1.0.0/16
+        nat:
+            cf_template: {{PROJECT_BASE}}/nat/nat_setup.template
+            depends:
+                - vpc
+            params:
+                natcidr:
+                    value: 10.1.1.0/24
+                nataz:
+                    value: 'us-east-1a'
+                vpcid:
+                    source: vpc
+                    type: resource
+                    variable: vpc
+                privateroutetableid:
+                    source: vpc
+                    type: resource
+                    variable: PrivateRouteTable
+                publiceroutetableid:
+                    source: vpc
+                    type: resource
+                    variable: PublicRouteTable
+                natinstanceami:
+                    value: ami-5bcfec31
+                natkeypairname:
+                    value: codepipeline
+                natinstsize:
+                    value: t2.micro
+                vpccidr:
+                    source: vpc
+                    type: parameter
+                    variable: vpccidr
+        bastion:
+            cf_template: {{PROJECT_BASE}}/bastion/bastion_setup.template
+            depends:
+                - vpc
+            params:
+                bastioncidr:
+                    value: 10.1.2.0/24
+                bastionaz:
+                    value: 'us-east-1a'
+                vpcid:
+                    source: vpc
+                    type: resource
+                    variable: vpc
+                publiceroutetableid:
+                    source: vpc
+                    type: resource
+                    variable: PublicRouteTable
+                bastioninstanceami:
+                    value: ami-9ccceff6
+                bastionkeypairname:
+                    value: codepipeline
+                bastioninstsize:
+                    value: t2.micro
+                vpccidr:
+                    source: vpc
+                    type: parameter
+                    variable: vpccidr
