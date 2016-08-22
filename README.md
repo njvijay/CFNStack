@@ -23,7 +23,7 @@ Here is the installation Procedure
 
 Clone the repo in your favorite directory
 
-[CFNStack repository ](http://githuben.intranet.mckinsey.com/MDL-Data/CFNStack.git)
+[CFNStack repository ](https://github.com/njvijay/CFNStack.git)
 
 Install CFNStack with setuptools (python3 should be used )
 
