@@ -77,7 +77,7 @@ Vagrant.configure(2) do |config|
      sudo pip install aws-shell
      sudo apt-get install python3-pip -y
      sudo apt-get install git -y
-     git clone http://githuben.intranet.mckinsey.com/MDL-Data/CFNStack.git
+     git clone https://github.com/njvijay/CFNStack.git
      cd CFNStack
      sudo python3 setup.py install
   SHELL
