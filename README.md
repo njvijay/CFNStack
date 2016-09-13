@@ -38,16 +38,25 @@ Enter "AWS Access Key ID", "AWS Secret Access Key" and "Default region name"
 ### cfnstack usage
 
 ```
-usage: cfnstack [-h] -y YAMLFILE -a ACTION [-l {critical,error,warning,info}]
-                [-L {critical,error,warning,info}] [-s STACKNAME]
+usage: cfnstack.py [-h] -y YAMLFILE -a
+                   {apply,update,createcs,listcs,applycs,deletecs,delete}
+                   [-l {critical,error,warning,info}]
+                   [-L {critical,error,warning,info}] [-s STACKNAME]
+                   [-c CHANGESETNAME] [-p PROFILE]
 
 optional arguments:
   -h, --help            show this help message and exit
   -y YAMLFILE, --yamlfile YAMLFILE
                         The yaml file where stacks,params & dependency
                         definition exists
-  -a ACTION, --action ACTION
-                        Action to be performed : apply, check, delete or watch
+  -a {apply,update,createcs,listcs,applycs,deletecs,delete}, --action {apply,update,createcs,listcs,applycs,deletecs,delete}
+                        Action to be performed : apply - Create Cloudformation
+                        stacks, update - Update CF stacks (Better use change
+                        sets), createcs - Create Change sets on given stack,
+                        listcs - List Change sets on given Stack, applycs -
+                        Apply Change Sets on given stack, deletecs - Delete
+                        change sets on given stack, delete - Delete
+                        Cloudformation stacks
   -l {critical,error,warning,info}, --logging {critical,error,warning,info}
                         Log level for output
                         messages,critical,error,warning,info,debug
@@ -56,6 +65,12 @@ optional arguments:
   -s STACKNAME, --stack STACKNAME
                         Stack Name. It can be called with individual action
                         also
+  -c CHANGESETNAME, --changesetname CHANGESETNAME
+                        Change Set name to be applied on stack to update
+  -p PROFILE, --profile PROFILE
+                        AWS configure profile name to be used. If not
+                        provided, default profile will be used. This could be
+                        useful to use with federated IAM USER
 ```
 
 ### YAML file structure for cfnstack
@@ -142,3 +157,21 @@ In above code snippets, vpcid parameter fetches vpcid from another stack called 
 source - Source cloudformation stack. Source should be defined in "depends" section as well.
 type - It can be "resource","parameter" or "output" depends on what type of resource you are referring from dependent stack. In this example, you are checking cloudformation resource called vpc which will reture physical id of vpc (vpcid)
 variable - variable name defined in dependent stack
+
+#### CloudFormation Change Sets
+CFNStack supports cloudformation change sets feature. It is best a practice use change sets to update existing stack instead of applying changes directly using 'update' action in the cfnstack command. CFNStack allows you to apply change sets stack by stack because changes in the environment is not going to happen everyday. 
+
+Here is the change sets related action parameters you can use with cnstack
+
+- createcs - Create Change sets on given stack
+- listcs - List Change sets on given Stack 
+- applycs - Apply Change Sets on given stack
+- deletecs - Delete change sets on given stack
+
+Example
+
+`cfnstack -y ~\test_cfn_changesets\test_stack.yaml -a createcs -c firstchangeset -p myprofie -s vpc`
+`cfnstack -y ~\test_cfn_changesets\test_stack.yaml -a listcs  -p myprofie -s vpc`
+`cfnstack -y ~\test_cfn_changesets\test_stack.yaml -a applycs -c firstchangeset -p myprofie -s vpc`
+`cfnstack -y ~\test_cfn_changesets\test_stack.yaml -a deletecs -c firstchangeset -p myprofie -s vpc`
+
