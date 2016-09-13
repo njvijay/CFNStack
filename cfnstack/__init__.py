@@ -19,12 +19,17 @@ def main():
     arg_parser.add_argument('-y', '--yamlfile', dest='yamlfile', required=True,
                             help="The yaml file where stacks,params & dependency definition exists")
     arg_parser.add_argument('-a', '--action', dest='action', required=True,
-                            help="Action to be performed : apply, check, delete or watch")
+                            choices=['apply','update','createcs','listcs','applycs','deletecs','delete'],
+                            help="Action to be performed : apply - Create Cloudformation stacks, update - Update CF stacks (Better use change sets)"
+                                 ", createcs - Create Change sets on given stack, listcs - List Change sets on given Stack, applycs - Apply Change Sets on given stack,"
+                                 " deletecs - Delete change sets on given stack, delete - Delete Cloudformation stacks")
     arg_parser.add_argument('-l','--logging', dest='loglevel', required=False, default="info",
                             choices=['critical','error','warning','info' or 'debug'], help='Log level for output messages,''critical,error,warning,info,debug')
     arg_parser.add_argument('-L','--botolog',dest='botolog',required=False,default='critical',
                             choices=['critical','error','warning','info' or 'debug'], help='Log level for boto,''critical,error,warning,info,debug')
     arg_parser.add_argument('-s','--stack',dest='stackname',required=False, help='Stack Name. It can be called with individual action also')
+    arg_parser.add_argument('-c', '--changesetname', dest='changesetname', required=False,
+                            help='Change Set name to be applied on stack to update')
     arg_parser.add_argument('-p', '--profile', dest='profile', required=False,
                             help='AWS configure profile name to be used. If not provided, default profile will be used. This could be useful to use with federated IAM USER')
 
@@ -34,7 +39,7 @@ def main():
 
     #Validating action parameter. Actions in commented variable will be developed for future enhancement
     #valid_actions = ['apply','check','update','delete','watch']
-    valid_actions = ['apply', 'update', 'delete']
+    valid_actions = ['apply', 'update', 'createcs', 'listcs', 'applycs','deletecs','delete']
     if args.action not in valid_actions:
         print("Invalid action provided, must be one of '%s'" % (", ".join(valid_actions)))
         exit(1)
@@ -78,6 +83,27 @@ def main():
         glued_stack.delete(args.stackname)
     if args.action == 'update':
         glued_stack.update(args.stackname)
+    if args.action == 'listcs':
+        glued_stack.listcs(args.stackname)
+    if args.action == 'applycs':
+        if args.changesetname != None and args.stackname != None:
+            glued_stack.applycs(args.stackname, args.changesetname)
+        else:
+            logger.critical("Change set name and stackname must be provided. Use option \"-c\" or \"--changesetname\" for changesetname, \"-s\" or \"--stackname\" for stackname .")
+            exit(1)
+    if args.action == 'createcs':
+        if args.changesetname != None and args.stackname != None:
+            glued_stack.createcs(args.stackname, args.changesetname)
+        else:
+            logger.critical("Change set name and stackname must be provided. Use option \"-c\" or \"--changesetname\" for changesetname, \"-s\" or \"--stackname\" for stackname .")
+            exit(1)
+    if args.action == 'deletecs':
+        if args.changesetname != None and args.stackname != None:
+            glued_stack.deletecs(args.stackname, args.changesetname)
+        else:
+            logger.critical("Change set name and stackname must be provided. Use option \"-c\" or \"--changesetname\" for changesetname, \"-s\" or \"--stackname\" for stackname .")
+            exit(1)
+
 
 
 if __name__ == '__main__':
