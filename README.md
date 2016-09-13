@@ -159,7 +159,7 @@ type - It can be "resource","parameter" or "output" depends on what type of reso
 variable - variable name defined in dependent stack
 
 #### CloudFormation Change Sets
-CFNStack supports cloudformation change sets feature. It is best a practice use change sets to update existing stack instead of applying changes directly using 'update' action in the cfnstack command. CFNStack allows you to apply change sets stack by stack because changes in the environment is not going to happen everyday. 
+CFNStack supports cloudformation change sets feature. It is a best practice using change sets to update existing stack instead of applying changes directly using 'update' action in the cfnstack command. CFNStack allows you to apply change sets stack by stack because changes in the environment is not going to happen everyday. 
 
 Here is the change sets related action parameters you can use with cnstack
 
@@ -171,7 +171,10 @@ Here is the change sets related action parameters you can use with cnstack
 Example
 
 `cfnstack -y ~\test_cfn_changesets\test_stack.yaml -a createcs -c firstchangeset -p myprofie -s vpc`
+
 `cfnstack -y ~\test_cfn_changesets\test_stack.yaml -a listcs  -p myprofie -s vpc`
+
 `cfnstack -y ~\test_cfn_changesets\test_stack.yaml -a applycs -c firstchangeset -p myprofie -s vpc`
+
 `cfnstack -y ~\test_cfn_changesets\test_stack.yaml -a deletecs -c firstchangeset -p myprofie -s vpc`
 
