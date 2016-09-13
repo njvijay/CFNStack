@@ -1,10 +1,12 @@
 import logging
 import os
 import time
+import datetime
 
 import boto3
 import pystache
 import yaml
+import simplejson
 from botocore.exceptions import NoCredentialsError, ClientError
 
 from cfnstack.CFNStack import CFNStack
@@ -293,6 +295,195 @@ class StackGlue(object):
 
             # avoid getting rate limited
             time.sleep(2)
+
+    #List CF change sets created in a stack
+    def listcs(self,stack_name=None):
+        for stack in self.stack_objs:
+            self.logger.info(stack)
+            if stack_name and stack.name != stack_name:
+                continue
+            self.logger.info("Starting to retrieve changesets for %s" % stack.name)
+
+            if not stack.exists_in_cfn(self.cfn_all_stacks):
+                self.logger.critical(
+                    "Stack %s does not exists in cloudformation, can't list change sets from non-existing stack, skipping..." % stack.name)
+            else:
+                if stack.dependencies_met(self.cfn_all_stacks) is False:
+                    self.logger.critical("Dependencies for stack %s is not met and exiting..." % stack.name)
+                    exit(1)
+                if not stack.populate_params(self.cfn_all_stacks):
+                    self.logger.critical("Could not determine correct parameters for stack %s" % stack.name)
+                    exit(1)
+
+            cf_client = self.cfn_conn.meta.client;
+
+            try:
+                stackcs = cf_client.list_change_sets(StackName=stack.cfn_stack_name)
+            except  Exception as exception:
+                self.logger.critical("Can't list change sets for stack %s. Error: %s" % (stack.cfn_stack_name, exception))
+                exit(1)
+
+            enco = lambda obj: (
+                obj.isoformat()
+                if isinstance(obj, datetime.datetime)
+                    or isinstance(obj, datetime.date)
+                else None
+            )
+
+            for csval in stackcs['Summaries']:
+                self.logger.info("\nHere is the description of change set \"%s\" for stack \"%s\", created on %s"
+                                     % (csval['ChangeSetName'],csval['StackName'],csval['CreationTime']))
+                self.logger.info("\n"+simplejson.dumps(csval,sort_keys=False,indent=4,default=enco))
+                self.logger.info("\n-----------------------------------------------------------------------------\n")
+                try:
+                    stackcs = cf_client.describe_change_set(ChangeSetName=csval['ChangeSetName'],StackName=csval['StackName'])
+                except  Exception as exception:
+                    self.logger.critical(
+                            "Can't describe change sets for stack %s. Error: %s" % (stack.cfn_stack_name, exception))
+                    exit(1)
+                self.logger.info("\nDetails of changes in the change set \"%s\" for stack \"%s\"" % (csval['ChangeSetName'],csval['StackName']) )
+                self.logger.info("\n"+simplejson.dumps(stackcs, sort_keys=False, indent=4, default=enco))
+                self.logger.info("\n********************************************************************\n")
+
+    #Apply or execute changeset to a stack
+    def applycs(self, stack_name=None, changesetname=None):
+        for stack in self.stack_objs:
+            if stack_name and stack.name != stack_name:
+                continue
+            self.logger.info("Starting to retrieve changesets for %s" % stack.name)
+
+        if not stack.exists_in_cfn(self.cfn_all_stacks):
+            self.logger.critical(
+                "Stack %s does not exists in cloudformation, can't apply change sets on non-existing stack, skipping..." % stack.name)
+        else:
+            if stack.dependencies_met(self.cfn_all_stacks) is False:
+                self.logger.critical("Dependencies for stack %s is not met and exiting..." % stack.name)
+                exit(1)
+            if not stack.populate_params(self.cfn_all_stacks):
+                self.logger.critical("Could not determine correct parameters for stack %s" % stack.name)
+                exit(1)
+
+        cf_client = self.cfn_conn.meta.client;
+
+        try:
+            stackcs = cf_client.list_change_sets(StackName=stack.cfn_stack_name)
+        except  Exception as exception:
+            self.logger.critical("Can't list change sets for stack %s. Error: %s" % (stack.cfn_stack_name, exception))
+            exit(1)
+
+        if len(stackcs['Summaries'])==0:
+            self.logger.info("No changesets are available to apply. Exiting with error")
+            exit(1)
+
+        cs_exists = 0
+        for csval in stackcs['Summaries']:
+            if stack.name == stack.name:
+                if csval['ChangeSetName'] == changesetname:
+                    self.logger.critical("Change set \"%s\" is available in stack \"%s\"" % (csval['ChangeSetName'],csval['StackName']))
+                    cs_exists = 1
+
+        if cs_exists == 0:
+            self.logger.critical("Can't find change set called \"%s\"" % changesetname)
+            exit(1)
+        else:
+            try:
+                cf_client.execute_change_set(ChangeSetName=changesetname, StackName=stack.cfn_stack_name)
+            except  Exception as exception:
+                self.logger.critical(
+                        "Can't execute change sets for stack %s. Error: %s" % (stack.cfn_stack_name, exception))
+                exit(1)
+
+        update_result = self.watch_events(
+                stack.cfn_stack_name, [
+                        "UPDATE_IN_PROGRESS",
+                        "UPDATE_COMPLETE_CLEANUP_IN_PROGRESS"])
+        if update_result != "UPDATE_COMPLETE":
+                self.logger.critical(
+                        "Stack didn't update correctly, status is now %s"
+                        % update_result)
+                exit(1)
+
+        self.logger.info(
+                    "Finished updating stack %s using change set: %s" % (stack.cfn_stack_name,changesetname))
+
+    #Create change set for a CF stack
+    def createcs(self, stack_name=None, changesetname=None):
+        for stack in self.stack_objs:
+            if stack_name and stack.name != stack_name:
+                continue
+
+            if not stack.exists_in_cfn(self.cfn_all_stacks):
+                self.logger.critical(
+                    "Stack %s does not exists in cloudformation, can't create change sets on non-existing stack, skipping..." % stack.name)
+            else:
+                if stack.dependencies_met(self.cfn_all_stacks) is False:
+                    self.logger.critical("Dependencies for stack %s is not met and exiting..." % stack.name)
+                    exit(1)
+                if not stack.populate_params(self.cfn_all_stacks):
+                    self.logger.critical("Could not determine correct parameters for stack %s" % stack.name)
+                    exit(1)
+
+            cf_client = self.cfn_conn.meta.client;
+
+            current_time = datetime.datetime.now().isoformat()
+            description_txt = "Change Set "+changesetname+" is created for "+stack.cfn_stack_name+" at "+current_time
+
+            stack.read_template()
+            self.logger.info("Creating Changeset: %s for stack: %s, and its parameters : %s" % (changesetname,stack.cfn_stack_name, stack.params))
+
+            try:
+                cf_client.create_change_set(
+                    StackName=stack.cfn_stack_name,
+                    TemplateBody=stack.template_body,
+                    Parameters=stack.params,
+                    Capabilities=['CAPABILITY_IAM'],
+                    NotificationARNs=stack.sns_topic_arn,
+                    Tags=stack.tags,
+                    ChangeSetName = changesetname,
+                    Description = description_txt
+                )
+            except Exception as exception:
+                self.logger.critical(
+                    "Can't create change sets for stack %s. Error: %s" % (stack.cfn_stack_name, exception))
+                exit(1)
+
+            self.logger.info("Changeset %s for stack %s is successfully created" % (changesetname, stack.cfn_stack_name))
+
+    #Delete change set from a CF stack
+    def deletecs(self, stack_name=None, changesetname=None):
+        for stack in self.stack_objs:
+            if stack_name and stack.name != stack_name:
+                continue
+
+            if not stack.exists_in_cfn(self.cfn_all_stacks):
+                self.logger.critical(
+                    "Stack %s does not exists in cloudformation, can't delete change sets on non-existing stack, skipping..." % stack.name)
+            else:
+                if stack.dependencies_met(self.cfn_all_stacks) is False:
+                    self.logger.critical("Dependencies for stack %s is not met and exiting..." % stack.name)
+                    exit(1)
+                if not stack.populate_params(self.cfn_all_stacks):
+                    self.logger.critical("Could not determine correct parameters for stack %s" % stack.name)
+                    exit(1)
+
+            cf_client = self.cfn_conn.meta.client;
+
+            self.logger.info("Delete Changeset: %s for stack: %s, and its parameters : %s" % (
+            changesetname, stack.cfn_stack_name, stack.params))
+
+            try:
+                cf_client.delete_change_set(
+                    StackName=stack.cfn_stack_name,
+                    ChangeSetName=changesetname
+                )
+            except Exception as exception:
+                self.logger.critical(
+                    "Can't delete change sets for stack %s. Error: %s" % (stack.cfn_stack_name, exception))
+                exit(1)
+
+            self.logger.info(
+                "Changeset %s for stack %s is successfully deleted" % (changesetname, stack.cfn_stack_name))
+
 
     #Delete cloudformation stack
     def delete(self, stack_name=None):
