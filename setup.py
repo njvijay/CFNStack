@@ -7,9 +7,9 @@ setup(
     url='',
     license='MDL',
     author='Vijayakumar Jawaharlal',
-    author_email='vijay_jawaharial@external.mckinsey.com',
+    author_email='vijayakumar.jawaharlal@gmail.com',
     description='Manage and Modularize cloudformation templates',
-    install_requires=['PyYAML','argparse','boto3','botocore','simplejson','pystache'],
+    install_requires=['PyYAML','argparse','boto3','botocore','simplejson','pystache','simplejson'],
     include_package_data=True,
     entry_points={
         'console_scripts': [
